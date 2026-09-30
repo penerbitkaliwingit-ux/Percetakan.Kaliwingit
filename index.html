@@ -3,20 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Percetakan Digital & Kasir POS</title>
+    <title>Percetakkan Bindhoro Sumber Kaliwingit & POS</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome 6 Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PDF.js Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     
     <style>
         /* CSS Khusus Mode Cetak (Print Stylesheet) */
         @media print {
             body * { visibility: hidden !important; }
             
-            /* Mode Cetak Lembar Foto A4 */
+            /* Mode Cetak Lembar Foto A4/F4 */
             body.printing-sheet #printArea, 
             body.printing-sheet #printArea * { 
                 visibility: visible !important; 
@@ -25,8 +28,6 @@
                 position: absolute; 
                 left: 0; 
                 top: 0; 
-                width: 210mm; 
-                min-height: 297mm;
                 margin: 0;
                 padding: 5mm;
                 box-shadow: none !important;
@@ -50,25 +51,6 @@
                 color: #000;
             }
 
-            /* Mode Cetak Dokumen PDF */
-            body.printing-pdf #pdfPrintArea, 
-            body.printing-pdf #pdfPrintArea * { 
-                visibility: visible !important; 
-            }
-            body.printing-pdf #pdfPrintArea { 
-                position: absolute; 
-                left: 0; 
-                top: 0; 
-                width: 100%; 
-                display: block !important;
-                background-color: #ffffff !important;
-            }
-            body.printing-pdf .pdf-print-page {
-                page-break-after: always;
-                page-break-inside: avoid;
-                margin: 0 auto;
-            }
-
             .no-print { display: none !important; }
         }
 
@@ -87,6 +69,17 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+
+        /* Drag and Drop visual feedback */
+        .dragging {
+            opacity: 0.4;
+            transform: scale(0.95);
+            border: 2px dashed #4f46e5 !important;
+        }
+        .drag-over {
+            outline: 2px solid #10b981 !important;
+            outline-offset: 2px;
+        }
     </style>
 </head>
 <body class="bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800 antialiased">
@@ -94,9 +87,9 @@
     <!-- Header Navbar -->
     <header class="bg-indigo-700 text-white shadow-lg no-print">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 class="text-xl font-bold flex items-center gap-2.5">
+            <h1 class="text-lg md:text-xl font-bold flex items-center gap-2.5">
                 <i class="fa-solid fa-print text-amber-400 text-2xl"></i> 
-                <span>Smart Percetakan Digital</span>
+                <span>Percetakkan Bindhoro Sumber Kaliwingit</span>
             </h1>
             <div class="flex items-center gap-3">
                 <button onclick="openSalesModal()" class="bg-indigo-800 hover:bg-indigo-900 text-xs font-semibold px-3 py-1.5 rounded-lg border border-indigo-500 flex items-center gap-1.5 transition-colors">
@@ -105,7 +98,6 @@
                 <span id="badge-cart-count" class="bg-amber-400 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow">
                     <i class="fa-solid fa-shopping-cart"></i> <span id="cart-item-count">0</span> Item
                 </span>
-                <span class="hidden md:inline-block text-xs bg-indigo-900 px-2.5 py-1 rounded-full border border-indigo-400 text-indigo-200">v2.5 - All-in-One POS</span>
             </div>
         </div>
     </header>
@@ -157,7 +149,6 @@
                         </div>
                     </div>
 
-                    <!-- Sensitivity / Threshold adjustment -->
                     <div class="space-y-3 pt-2 border-t">
                         <div>
                             <div class="flex justify-between text-xs font-medium mb-1">
@@ -216,7 +207,7 @@
             </div>
         </section>
 
-        <!-- TAB 2: LAYOUT CETAK FOTO (GRID A4) -->
+        <!-- TAB 2: LAYOUT CETAK FOTO (GRID A4 & F4) -->
         <section id="sec-grid-print" class="tab-content hidden">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Sidebar Kontrol Grid -->
@@ -225,11 +216,21 @@
                         <i class="fa-solid fa-gear text-indigo-600"></i> Pengaturan Kertas & Layout
                     </h2>
                     
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Ukuran Kertas Utama</label>
-                        <select id="paper-size" class="w-full border rounded-lg p-2 text-sm bg-slate-50 font-medium">
-                            <option value="A4">A4 (210 x 297 mm)</option>
-                        </select>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Ukuran Kertas</label>
+                            <select id="paper-size" onchange="updatePaperDimensions(); renderGridPreview();" class="w-full border rounded-lg p-2 text-sm bg-slate-50 font-medium">
+                                <option value="A4" selected>A4 (210 x 297 mm)</option>
+                                <option value="F4">F4 / Folio (215 x 330 mm)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Orientasi</label>
+                            <select id="paper-orientation" onchange="updatePaperDimensions(); renderGridPreview();" class="w-full border rounded-lg p-2 text-sm bg-slate-50 font-medium">
+                                <option value="portrait" selected>Portrait (Tegak)</option>
+                                <option value="landscape">Landscape (Mendatar)</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -275,7 +276,7 @@
                         </div>
 
                         <button onclick="addPhotoToGrid()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-sm">
-                            + Masukkan Ke Grid Lembar A4
+                            + Masukkan Ke Grid Kertas
                         </button>
                     </div>
 
@@ -284,7 +285,7 @@
                             <i class="fa-solid fa-cart-plus"></i> Hitung & Kirim ke Kasir
                         </button>
                         <button onclick="printPhotoSheet()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-colors shadow-sm">
-                            <i class="fa-solid fa-print"></i> Cetak Lembar Foto A4
+                            <i class="fa-solid fa-print"></i> Cetak Lembar Foto
                         </button>
                         <button onclick="clearGrid()" class="w-full bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 py-2 rounded-lg text-xs font-semibold transition-colors">
                             Kosongkan Lembar Cetak
@@ -292,15 +293,15 @@
                     </div>
                 </div>
 
-                <!-- Preview Lembar Kertas A4 -->
+                <!-- Preview Lembar Kertas A4/F4 -->
                 <div class="lg:col-span-2 flex flex-col items-center bg-slate-300 p-4 rounded-xl overflow-auto min-h-[520px] shadow-inner">
                     <div class="text-xs font-medium text-slate-600 mb-2 no-print flex items-center gap-2">
-                        <i class="fa-solid fa-eye"></i> Simulasi Pratinjau Kertas A4 Skala Realistis
+                        <i class="fa-solid fa-up-down-left-right text-indigo-600"></i> Simulasi Pratinjau — <strong>Klik & Geser foto</strong> untuk memindahkan posisi
                     </div>
-                    <div id="printArea" class="bg-white shadow-2xl p-6 relative flex flex-wrap content-start items-start gap-2 border border-slate-300 transition-all" style="width: 210mm; min-height: 297mm; box-sizing: border-box;">
+                    <div id="printArea" class="bg-white shadow-2xl p-6 relative flex flex-wrap content-start items-start border border-slate-300 transition-all" style="width: 210mm; min-height: 297mm; box-sizing: border-box;">
                         <p id="grid-empty-msg" class="text-slate-400 text-center w-full my-auto no-print py-20">
                             <i class="fa-solid fa-border-all text-5xl block mb-3 text-slate-300"></i>
-                            Lembar A4 masih kosong.<br>Tambahkan foto dari panel samping atau dari menu Edit Pasfoto.
+                            Lembar kertas masih kosong.<br>Tambahkan foto dari panel samping atau dari menu Edit Pasfoto.
                         </p>
                     </div>
                 </div>
@@ -362,18 +363,18 @@
                                 <p class="text-[11px] text-slate-500" id="pdf-file-info-text">File siap dicetak langsung atau dikirim ke kasir</p>
                             </div>
                         </div>
-                        <button onclick="openPdfInNewTab()" class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
+                        <button onclick="openPdfPreview()" class="text-xs font-semibold text-indigo-700 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5">
                             <i class="fa-solid fa-arrow-up-right-from-square"></i> Preview
                         </button>
                     </div>
 
-                    <!-- Tombol Aksi Utama: Kasir & Cetak Langsung -->
+                    <!-- Tombol Aksi Utama -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <button onclick="sendPdfToCashier()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-colors">
                             <i class="fa-solid fa-cart-plus text-lg"></i> Hitung & Kirim ke Kasir
                         </button>
-                        <button onclick="printPdfNative()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-colors">
-                            <i class="fa-solid fa-print text-lg"></i> Cetak PDF Langsung (Semua Hal)
+                        <button onclick="printPdfNative('all')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-colors">
+                            <i class="fa-solid fa-print text-lg"></i> Cetak PDF (Semua Hal.)
                         </button>
                     </div>
 
@@ -383,452 +384,252 @@
                             <i class="fa-solid fa-filter text-indigo-600"></i> Opsi Cetak Terpisah (Filter Warna):
                         </h4>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                            <button onclick="printPdfFiltered('color')" class="p-2.5 bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-800 rounded-lg border border-slate-200 font-semibold flex items-center justify-between transition-colors shadow-sm">
+                            <button onclick="printPdfNative('color')" class="p-2.5 bg-white hover:bg-amber-50 text-slate-800 hover:text-amber-800 rounded-lg border border-slate-200 font-semibold flex items-center justify-between transition-colors shadow-sm">
                                 <span class="flex items-center gap-1.5"><i class="fa-solid fa-palette text-amber-500"></i> Cetak Hal. Warna Saja</span>
-                                <span id="btn-count-color" class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-bold">0 Hal</span>
+                                <span id="badge-color-pages" class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded text-[10px] font-bold">0 Hal</span>
                             </button>
-                            <button onclick="printPdfFiltered('bw')" class="p-2.5 bg-white hover:bg-slate-100 text-slate-800 rounded-lg border border-slate-200 font-semibold flex items-center justify-between transition-colors shadow-sm">
-                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-circle-half-stroke text-slate-600"></i> Cetak Hal. Hitam Putih Saja</span>
-                                <span id="btn-count-bw" class="bg-slate-200 text-slate-800 px-2 py-0.5 rounded-full text-[10px] font-bold">0 Hal</span>
+                            <button onclick="printPdfNative('bw')" class="p-2.5 bg-white hover:bg-emerald-50 text-slate-800 hover:text-emerald-800 rounded-lg border border-slate-200 font-semibold flex items-center justify-between transition-colors shadow-sm">
+                                <span class="flex items-center gap-1.5"><i class="fa-solid fa-file-lines text-slate-600"></i> Cetak Hal. B&W Saja</span>
+                                <span id="badge-bw-pages" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px] font-bold">0 Hal</span>
                             </button>
                         </div>
-                    </div>
-
-                    <div>
-                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Rincian Per Halaman Dokumen:</h3>
-                        <div id="page-breakdown" class="max-h-64 overflow-y-auto border rounded-xl p-3 space-y-1.5 bg-slate-50 text-xs"></div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 4: KASIR & MESIN POS -->
+        <!-- TAB 4: KASIR & POS -->
         <section id="sec-pos-cashier" class="tab-content hidden">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Panel Konfigurasi Tarif & Input Manual -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-4">
-                    <h2 class="font-bold text-lg border-b pb-2 text-slate-700 flex items-center gap-2">
-                        <i class="fa-solid fa-tags text-indigo-600"></i> Pengaturan Tarif Percetakan
-                    </h2>
-                    
-                    <div class="space-y-2 text-xs">
-                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border">
-                            <span class="font-medium text-slate-600">PDF Hitam Putih / Hal:</span>
-                            <div class="flex items-center gap-1">
-                                <span class="text-slate-400 font-bold">Rp</span>
-                                <input type="number" id="price-bw" value="500" class="w-24 border rounded p-1 text-right font-bold text-slate-800 bg-white">
-                            </div>
-                        </div>
-                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border">
-                            <span class="font-medium text-slate-600">PDF Warna / Hal:</span>
-                            <div class="flex items-center gap-1">
-                                <span class="text-slate-400 font-bold">Rp</span>
-                                <input type="number" id="price-color" value="1500" class="w-24 border rounded p-1 text-right font-bold text-slate-800 bg-white">
-                            </div>
-                        </div>
-                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border">
-                            <span class="font-medium text-slate-600">Cetak Foto A4 / Lembar:</span>
-                            <div class="flex items-center gap-1">
-                                <span class="text-slate-400 font-bold">Rp</span>
-                                <input type="number" id="price-photo-a4" value="5000" class="w-24 border rounded p-1 text-right font-bold text-slate-800 bg-white">
-                            </div>
-                        </div>
-                        <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border">
-                            <span class="font-medium text-slate-600">Jasa Edit / Hapus BG:</span>
-                            <div class="flex items-center gap-1">
-                                <span class="text-slate-400 font-bold">Rp</span>
-                                <input type="number" id="price-edit-bg" value="5000" class="w-24 border rounded p-1 text-right font-bold text-slate-800 bg-white">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Quick Preset Service Buttons -->
-                    <div class="border-t pt-3">
-                        <h3 class="font-bold text-xs uppercase text-slate-500 mb-2">Layanan Cepat Tambahan</h3>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <button onclick="addPresetItem('Jilid Mika Standard', 5000)" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200 font-medium text-left transition-colors">
-                                + Jilid Mika (5rb)
+                <!-- Pintasan Produk / Layanan -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                        <h2 class="font-bold text-lg border-b pb-2 text-slate-700 flex items-center gap-2">
+                            <i class="fa-solid fa-cubes text-indigo-600"></i> Layanan Cepat Percetakan
+                        </h2>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <button onclick="quickAddToCart('Fotocopy A4 (B&W)', 500)" class="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all shadow-sm group">
+                                <span class="font-bold text-sm text-slate-800 group-hover:text-indigo-700 block">Fotocopy A4 (B&W)</span>
+                                <span class="text-xs text-indigo-600 font-semibold">Rp 500 / lembar</span>
                             </button>
-                            <button onclick="addPresetItem('Jilid Softcover', 15000)" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200 font-medium text-left transition-colors">
-                                + Softcover (15rb)
+                            <button onclick="quickAddToCart('Cetak Dokumen Warna', 1500)" class="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all shadow-sm group">
+                                <span class="font-bold text-sm text-slate-800 group-hover:text-indigo-700 block">Cetak Doc Warna</span>
+                                <span class="text-xs text-indigo-600 font-semibold">Rp 1.500 / lembar</span>
                             </button>
-                            <button onclick="addPresetItem('Laminasi A4 Pres', 3000)" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200 font-medium text-left transition-colors">
-                                + Laminasi A4 (3rb)
+                            <button onclick="quickAddToCart('Pasfoto Paket Lembar', 15000)" class="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all shadow-sm group">
+                                <span class="font-bold text-sm text-slate-800 group-hover:text-indigo-700 block">Pasfoto Paket Lembar</span>
+                                <span class="text-xs text-indigo-600 font-semibold">Rp 15.000 / lembar</span>
                             </button>
-                            <button onclick="addPresetItem('Scan Dokumen', 1000)" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200 font-medium text-left transition-colors">
-                                + Scan File (1rb)
+                            <button onclick="quickAddToCart('Cetak Foto 4R', 5000)" class="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all shadow-sm group">
+                                <span class="font-bold text-sm text-slate-800 group-hover:text-indigo-700 block">Cetak Foto 4R</span>
+                                <span class="text-xs text-indigo-600 font-semibold">Rp 5.000 / pcs</span>
+                            </button>
+                            <button onclick="quickAddToCart('Jilid Lakban', 5000)" class="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all shadow-sm group">
+                                <span class="font-bold text-sm text-slate-800 group-hover:text-indigo-700 block">Jilid Lakban</span>
+                                <span class="text-xs text-indigo-600 font-semibold">Rp 5.000 / buku</span>
+                            </button>
+                            <button onclick="quickAddToCart('Laminating A4/F4', 7000)" class="p-3 bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-left transition-all shadow-sm group">
+                                <span class="font-bold text-sm text-slate-800 group-hover:text-indigo-700 block">Laminating A4/F4</span>
+                                <span class="text-xs text-indigo-600 font-semibold">Rp 7.000 / lembar</span>
                             </button>
                         </div>
                     </div>
 
-                    <div class="border-t pt-3">
-                        <h3 class="font-bold text-sm text-slate-700 mb-2">Tambah Layanan Manual</h3>
-                        <div class="space-y-2">
-                            <input type="text" id="manual-item-name" placeholder="Nama Barang / Jasa Custom" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
-                            <div class="flex gap-2">
-                                <input type="number" id="manual-item-price" placeholder="Harga (Rp)" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
-                                <input type="number" id="manual-item-qty" value="1" min="1" class="w-20 border rounded-lg p-2 text-sm text-center font-bold bg-slate-50">
-                            </div>
-                            <button onclick="addManualItemToCart()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-semibold transition-colors shadow-sm">
-                                + Tambah Ke Keranjang
+                    <!-- Form Tambah Item Kustom -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                        <h3 class="font-bold text-sm text-slate-700">+ Tambah Layanan / Produk Kustom</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <input type="text" id="custom-item-name" placeholder="Nama Layanan / Barang" class="border rounded-lg p-2 text-sm bg-slate-50">
+                            <input type="number" id="custom-item-price" placeholder="Harga (Rp)" class="border rounded-lg p-2 text-sm bg-slate-50">
+                            <button onclick="addCustomToCart()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-sm p-2 transition-colors">
+                                + Masukkan Keranjang
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Panel Keranjang & Pembayaran -->
-                <div class="lg:col-span-2 bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <!-- Rincian Keranjang Kasir -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between space-y-4">
                     <div>
-                        <div class="flex justify-between items-center border-b pb-3 mb-4">
+                        <div class="flex justify-between items-center border-b pb-2 mb-3">
                             <h2 class="font-bold text-lg text-slate-700 flex items-center gap-2">
-                                <i class="fa-solid fa-cart-shopping text-indigo-600"></i> Keranjang Transaksi
+                                <i class="fa-solid fa-receipt text-indigo-600"></i> Struk / Keranjang
                             </h2>
-                            <button onclick="clearCart()" class="text-xs text-rose-600 hover:text-rose-700 hover:underline font-semibold flex items-center gap-1">
-                                <i class="fa-solid fa-trash"></i> Kosongkan Keranjang
-                            </button>
+                            <button onclick="clearCart()" class="text-xs text-rose-600 hover:underline">Kosongkan</button>
                         </div>
 
-                        <!-- Tabel Keranjang -->
-                        <div class="overflow-x-auto max-h-[280px] overflow-y-auto mb-4 border rounded-lg">
-                            <table class="w-full text-left text-xs">
-                                <thead>
-                                    <tr class="bg-slate-100 border-b text-slate-600 font-bold uppercase sticky top-0">
-                                        <th class="p-3">Item Layanan</th>
-                                        <th class="p-3 text-right">Harga Satuan</th>
-                                        <th class="p-3 text-center">Jumlah</th>
-                                        <th class="p-3 text-right">Subtotal</th>
-                                        <th class="p-3 text-center">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="cart-table-body" class="divide-y">
-                                    <tr>
-                                        <td colspan="5" class="text-center py-12 text-slate-400">Keranjang transaksi masih kosong</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <!-- Daftar Item Keranjang -->
+                        <div id="cart-list" class="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                            <p id="cart-empty-msg" class="text-center text-slate-400 text-xs py-10">Keranjang masih kosong</p>
                         </div>
                     </div>
 
-                    <!-- Payment Summary & Form -->
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                            <div>
-                                <label class="block text-slate-500 font-medium mb-1">Diskon (Rp)</label>
-                                <input type="number" id="pos-discount" value="0" min="0" oninput="calculatePOS()" class="w-full border rounded-lg p-2 text-right font-bold bg-white">
-                            </div>
-                            <div>
-                                <label class="block text-slate-500 font-medium mb-1">Metode Bayar</label>
-                                <select id="pos-payment-method" class="w-full border rounded-lg p-2 font-bold bg-white">
-                                    <option value="Tunai">Tunai (Cash)</option>
-                                    <option value="QRIS">QRIS / Non-Tunai</option>
-                                    <option value="Transfer">Transfer Bank</option>
-                                    <option value="Debit">Kartu Debit</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-slate-500 font-medium mb-1">Uang Diterima (Rp)</label>
-                                <input type="number" id="pos-cash-paid" value="0" min="0" oninput="calculatePOS()" class="w-full border rounded-lg p-2 text-right font-bold text-indigo-700 bg-white">
-                            </div>
-                            <div>
-                                <label class="block text-slate-500 font-medium mb-1">Kembalian (Rp)</label>
-                                <div id="pos-change" class="text-sm font-black text-slate-800 p-2 bg-slate-200 rounded-lg text-right">Rp 0</div>
+                    <!-- Pembayaran & Total -->
+                    <div class="border-t pt-3 space-y-3">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-500">Total Biaya:</span>
+                                <span id="pos-subtotal" class="font-extrabold text-xl text-indigo-700">Rp 0</span>
                             </div>
                         </div>
 
-                        <!-- Quick Cash Buttons -->
-                        <div class="flex flex-wrap gap-1.5 text-xs">
-                            <span class="text-slate-400 text-[11px] self-center mr-1">Uang Pas:</span>
-                            <button onclick="setQuickCash('exact')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded-md font-semibold text-slate-700">Pas</button>
-                            <button onclick="setQuickCash(10000)" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded-md font-semibold text-slate-700">10rb</button>
-                            <button onclick="setQuickCash(20000)" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded-md font-semibold text-slate-700">20rb</button>
-                            <button onclick="setQuickCash(50000)" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded-md font-semibold text-slate-700">50rb</button>
-                            <button onclick="setQuickCash(100000)" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 rounded-md font-semibold text-slate-700">100rb</button>
+                        <div class="space-y-2">
+                            <label class="block text-xs font-semibold uppercase text-slate-500">Uang Pembayaran (Rp)</label>
+                            <input type="number" id="pos-pay-amount" oninput="calculateChange()" placeholder="Masukkan nominal uang..." class="w-full border-2 border-indigo-200 rounded-lg p-2.5 font-bold text-lg text-slate-800 focus:border-indigo-600 focus:outline-none">
                         </div>
 
-                        <!-- Total Banner & Pay Button -->
-                        <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2 border-t">
-                            <div>
-                                <span class="text-xs text-slate-500 font-bold uppercase block">Total Akhir Pembayaran:</span>
-                                <span id="pos-grand-total" class="text-2xl font-black text-indigo-700">Rp 0</span>
-                            </div>
-                            <button onclick="processCheckout()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95">
-                                <i class="fa-solid fa-receipt text-lg"></i> Selesaikan & Cetak Struk
-                            </button>
+                        <div class="flex justify-between text-sm bg-slate-100 p-2.5 rounded-lg border">
+                            <span class="font-semibold text-slate-600">Kembalian:</span>
+                            <span id="pos-change-amount" class="font-bold text-emerald-600 text-base">Rp 0</span>
                         </div>
+
+                        <button onclick="processCheckout()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-md transition-colors text-base">
+                            <i class="fa-solid fa-print"></i> Cetak Struk Kasir
+                        </button>
                     </div>
                 </div>
             </div>
         </section>
-
     </main>
 
-    <!-- Thermal Receipt Print View Hidden Area -->
+    <!-- AREA STRUK KHUSUS DIPRINT UNTUK THERMAL PRINTER (80mm) -->
     <div id="receiptPrintArea" class="hidden">
-        <div style="text-align: center; margin-bottom: 8px;">
-            <h3 style="font-size: 14px; font-weight: bold; margin: 0;">SMART PERCETAKAN DIGITAL</h3>
-            <p style="font-size: 10px; margin: 2px 0;">Layanan Cetak & Kasir POS</p>
-            <p style="font-size: 10px; margin: 2px 0; border-bottom: 1px dashed #000; padding-bottom: 4px;"></p>
+        <div style="text-align: center; margin-bottom: 10px;">
+            <h2 style="font-weight: bold; font-size: 13px; margin: 0; text-transform: uppercase;">PERCETAKKAN BINDHORO SUMBER KALIWINGIT</h2>
+            <p style="font-size: 10px; margin: 2px 0;">Layanan Cetak Digital, Pasfoto & Dokumen</p>
+            <p style="font-size: 10px; margin: 2px 0;">Telp/WA: 0812-3456-7890</p>
+            <p style="font-size: 10px; margin: 4px 0;">--------------------------------</p>
         </div>
         <div style="font-size: 10px; margin-bottom: 8px;">
-            <p style="margin: 2px 0;">No. TRX : <span id="rec-no">-</span></p>
-            <p style="margin: 2px 0;">Tanggal  : <span id="rec-date">-</span></p>
-            <p style="margin: 4px 0; border-bottom: 1px dashed #000; padding-bottom: 4px;"></p>
+            <p style="margin: 2px 0;">Tgl: <span id="rec-date"></span></p>
+            <p style="margin: 2px 0;">No: #<span id="rec-no"></span></p>
+            <p style="margin: 4px 0;">--------------------------------</p>
         </div>
-        <table style="width: 100%; font-size: 10px; border-collapse: collapse; margin-bottom: 8px;">
-            <thead>
-                <tr style="border-bottom: 1px dashed #000; text-align: left;">
-                    <th style="padding-bottom: 2px;">Item</th>
-                    <th style="text-align: right; padding-bottom: 2px;">Subtotal</th>
-                </tr>
-            </thead>
-            <tbody id="rec-items-body">
-                <!-- Data item diisi dinamis oleh script -->
-            </tbody>
-        </table>
-        <div style="font-size: 10px; border-top: 1px dashed #000; padding-top: 4px; margin-bottom: 8px;">
-            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                <span>Subtotal:</span>
-                <span id="rec-subtotal">Rp 0</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                <span>Diskon:</span>
-                <span id="rec-discount">Rp 0</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-weight: bold; margin: 4px 0 2px 0; font-size: 11px;">
+        <div id="rec-items" style="font-size: 10px; margin-bottom: 8px;">
+            <!-- Render Item Struk -->
+        </div>
+        <div style="font-size: 10px; border-top: 1px dashed #000; padding-top: 4px;">
+            <div style="display: flex; justify-content: space-between; font-weight: bold;">
                 <span>TOTAL:</span>
                 <span id="rec-total">Rp 0</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                <span>Metode:</span>
-                <span id="rec-method">Tunai</span>
+            <div style="display: flex; justify-content: space-between;">
+                <span>BAYAR:</span>
+                <span id="rec-pay">Rp 0</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                <span>Bayar:</span>
-                <span id="rec-paid">Rp 0</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
-                <span>Kembali:</span>
+            <div style="display: flex; justify-content: space-between;">
+                <span>KEMBALI:</span>
                 <span id="rec-change">Rp 0</span>
             </div>
         </div>
-        <div style="text-align: center; font-size: 9px; margin-top: 12px; border-top: 1px dashed #000; padding-top: 4px;">
-            <p style="margin: 2px 0;">--- TERIMA KASIH ---</p>
-            <p style="margin: 2px 0;">Barang/Hasil Cetak Harap Diperiksa Kembali</p>
+        <div style="text-align: center; margin-top: 12px; font-size: 9px;">
+            <p style="margin: 2px 0;">*** Terima Kasih ***</p>
+            <p style="margin: 2px 0;">Barang/Cetakan yang sudah dibeli</p>
+            <p style="margin: 2px 0;">mohon diperiksa kembali</p>
         </div>
     </div>
 
-    <!-- Hidden Print Container for PDF Filtered Printing -->
-    <div id="pdfPrintArea" class="hidden"></div>
-
-    <!-- Modal Pratinjau Hasil Cetak Terpisah PDF -->
-    <div id="modal-pdf-filter" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[90vh] flex flex-col">
+    <!-- MODAL LAPORAN RINGKAS PENJUALAN -->
+    <div id="sales-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-6 space-y-4 m-4">
             <div class="flex justify-between items-center border-b pb-3">
-                <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base" id="filter-preview-title">
-                    <i class="fa-solid fa-file-pdf text-red-600"></i> Pratinjau Cetak Halaman PDF Terpisah
+                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-indigo-600"></i> Laporan Penjualan Sederhana
                 </h3>
-                <button onclick="closePdfFilterModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+                <button onclick="closeSalesModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
-            <div class="text-xs text-slate-500">
-                Berikut adalah tampilan halaman hasil filter yang siap dicetak ke printer:
-            </div>
-            <div id="pdf-filter-preview-list" class="overflow-y-auto flex-grow border rounded-xl p-3 bg-slate-200 grid grid-cols-1 gap-4 max-h-[50vh]">
-                <!-- Preview Gambar Halaman PDF dimasukkan di sini -->
-            </div>
-            <div class="flex justify-end gap-3 border-t pt-3">
-                <button onclick="closePdfFilterModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition-colors">
-                    Tutup
-                </button>
-                <button onclick="doPrintPdfFiltered()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow transition-colors">
-                    <i class="fa-solid fa-print"></i> Cetak Halaman Ini
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Pratinjau Struk Kasir -->
-    <div id="modal-receipt" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
-            <div class="flex justify-between items-center border-b pb-2">
-                <h3 class="font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-receipt text-indigo-600"></i> Struk Transaksi Selesai
-                </h3>
-                <button onclick="closeReceiptModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
-            </div>
-            <div class="bg-slate-100 p-4 rounded-xl border text-center font-mono text-xs space-y-1">
-                <i class="fa-solid fa-circle-check text-emerald-500 text-3xl mb-1 block"></i>
-                <p class="font-bold text-slate-800">Pembayaran Berhasil!</p>
-                <p class="text-slate-500" id="modal-rec-summary">Total: Rp 0</p>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                    <span class="text-xs text-indigo-600 font-bold uppercase">Total Omset</span>
+                    <h4 id="report-total-sales" class="text-2xl font-extrabold text-indigo-900">Rp 0</h4>
+                </div>
+                <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <span class="text-xs text-emerald-600 font-bold uppercase">Total Transaksi</span>
+                    <h4 id="report-total-trans" class="text-2xl font-extrabold text-emerald-900">0 TRX</h4>
+                </div>
             </div>
             <div class="space-y-2">
-                <button onclick="printReceipt()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow transition-colors">
-                    <i class="fa-solid fa-print"></i> Cetak Struk Thermal
-                </button>
-                <button onclick="closeReceiptModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-semibold text-sm transition-colors">
-                    Tutup & Transaksi Baru
-                </button>
+                <h4 class="text-xs font-bold text-slate-600 uppercase">Riwayat Transaksi Terbaru</h4>
+                <div id="report-history-list" class="max-h-[220px] overflow-y-auto border rounded-xl p-2 bg-slate-50 text-xs space-y-1.5">
+                    <p class="text-center text-slate-400 py-6">Belum ada transaksi tercatat</p>
+                </div>
+            </div>
+            <div class="flex justify-between items-center pt-2">
+                <button onclick="clearSalesData()" class="text-xs text-rose-600 hover:underline">Hapus Semua Riwayat</button>
+                <button onclick="closeSalesModal()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-semibold">Tutup</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Laporan Penjualan Hari Ini -->
-    <div id="modal-sales" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
-            <div class="flex justify-between items-center border-b pb-2">
-                <h3 class="font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-chart-pie text-indigo-600"></i> Ringkasan Penjualan Hari Ini
-                </h3>
-                <button onclick="closeSalesModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div class="bg-emerald-50 p-3.5 rounded-xl border border-emerald-100">
-                    <span class="block text-xs font-bold text-emerald-600 uppercase">Total Pendapatan</span>
-                    <span id="sales-total-amount" class="text-xl font-black text-emerald-900">Rp 0</span>
-                </div>
-                <div class="bg-indigo-50 p-3.5 rounded-xl border border-indigo-100">
-                    <span class="block text-xs font-bold text-indigo-600 uppercase">Total Transaksi</span>
-                    <span id="sales-total-count" class="text-xl font-black text-indigo-900">0 TRX</span>
-                </div>
-            </div>
-            <div>
-                <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Riwayat Transaksi Terakhir:</h4>
-                <div id="sales-history-list" class="max-h-52 overflow-y-auto border rounded-xl p-2 bg-slate-50 text-xs space-y-1.5">
-                    <p class="text-slate-400 text-center py-6">Belum ada transaksi tercatat hari ini.</p>
-                </div>
-            </div>
-            <div class="flex justify-between gap-2 border-t pt-3">
-                <button onclick="clearSalesHistory()" class="text-xs text-rose-600 hover:underline">Hapus Riwayat</button>
-                <button onclick="closeSalesModal()" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold">Tutup</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom Notification Toast -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-2xl hidden z-50 flex items-center gap-2 transition-all">
-        <i id="toast-icon" class="fa-solid fa-circle-info text-amber-400"></i>
-        <span id="toast-msg">Notifikasi...</span>
-    </div>
-
+    <!-- JAVASCRIPT LOGIC & ENGINE -->
     <script>
-        // Inisialisasi PDF.js Worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // --- GLOBAL STATE ---
+        let currentTab = 'bg-remover';
+        let originalImage = null;
+        let photoCanvas = document.getElementById('photo-canvas');
+        let ctx = photoCanvas.getContext('2d');
+        let selectedBgColor = '#D32F2F';
+        let isEyedropperActive = false;
+        
+        let gridItems = []; // Array individual foto: { id, src, dim }
+        let draggedItemIndex = null; // Drag and drop state
 
-        // Variable State Aplikasi Global
-        let cart = [];
-        let gridPhotos = [];
-        let currentPhotoImg = null;
-        let originalImageData = null;
-        let isPickingColor = false;
-        let targetBgColorRGB = null;
-        let salesHistory = [];
-        let currentPdfFile = null;
-        let currentPdfBlobUrl = null;
+        let currentPdfDoc = null;
+        let pdfAnalysisResult = { totalPages: 0, bwPages: [], colorPages: [] };
+        
+        let cart = []; // { name, price, qty }
+        let salesHistory = JSON.parse(localStorage.getItem('smart_pos_sales') || '[]');
 
-        // Inisialisasi saat window dimuat
-        window.onload = function() {
-            initCanvas();
-            renderCart();
-            renderGridPreview();
-            loadSalesHistory();
-        };
-
-        // --- NAVIGATION LOGIC ---
+        // --- TAB SWITCHER ---
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('text-indigo-600', 'border-b-2', 'border-indigo-600');
                 btn.classList.add('text-slate-500');
             });
-
             document.getElementById('sec-' + tabId).classList.remove('hidden');
             const activeBtn = document.getElementById('tab-' + tabId);
-            if (activeBtn) {
-                activeBtn.classList.add('text-indigo-600', 'border-b-2', 'border-indigo-600');
+            if(activeBtn) {
                 activeBtn.classList.remove('text-slate-500');
+                activeBtn.classList.add('text-indigo-600', 'border-b-2', 'border-indigo-600');
             }
+            currentTab = tabId;
         }
 
-        // --- TOAST HELPER ---
-        function showToast(message, icon = 'fa-circle-info') {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-msg').innerText = message;
-            document.getElementById('toast-icon').className = `fa-solid ${icon} text-amber-400`;
-            toast.classList.remove('hidden');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 3000);
-        }
-
-        // ==========================================
-        // TAB 1: EDIT & HAPUS BACKGROUND PASFOTO LOGIC
-        // ==========================================
-        let canvas, ctx;
-
-        function initCanvas() {
-            canvas = document.getElementById('photo-canvas');
-            ctx = canvas.getContext('2d');
-
-            canvas.addEventListener('click', function(e) {
-                if (!isPickingColor || !originalImageData) return;
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                const x = Math.floor((e.clientX - rect.left) * scaleX);
-                const y = Math.floor((e.clientY - rect.top) * scaleY);
-
-                const pixel = ctx.getImageData(x, y, 1, 1).data;
-                targetBgColorRGB = { r: pixel[0], g: pixel[1], b: pixel[2] };
-                
-                isPickingColor = false;
-                document.getElementById('pipette-info').classList.add('hidden');
-                canvas.style.cursor = 'default';
-                
-                showToast(`Warna sampel terpilih: RGB(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`, 'fa-eye-dropper');
-                processBgRemoval();
-            });
-        }
-
+        // --- SECTION 1: PASFOTO BG REMOVER & CANVAS ---
         function handleImageUpload(e) {
             const file = e.target.files[0];
-            if (!file) return;
-
+            if(!file) return;
             const reader = new FileReader();
             reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    currentPhotoImg = img;
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    
-                    ctx.drawImage(img, 0, 0);
-                    originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    // Auto-sample top-left corner pixel as background color default
-                    const topLeft = ctx.getImageData(5, 5, 1, 1).data;
-                    targetBgColorRGB = { r: topLeft[0], g: topLeft[1], b: topLeft[2] };
-
+                originalImage = new Image();
+                originalImage.onload = function() {
                     document.getElementById('placeholder-text').classList.add('hidden');
-                    canvas.classList.remove('hidden');
-                    showToast('Foto berhasil dimuat!', 'fa-circle-check');
+                    photoCanvas.classList.remove('hidden');
+                    photoCanvas.width = originalImage.width;
+                    photoCanvas.height = originalImage.height;
+                    renderPhotoCanvas();
                 };
-                img.src = event.target.result;
+                originalImage.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        function pickColorEyedropper() {
-            if (!originalImageData) {
-                showToast('Unggah foto terlebih dahulu!', 'fa-triangle-exclamation');
-                return;
-            }
-            isPickingColor = true;
-            canvas.style.cursor = 'crosshair';
-            document.getElementById('pipette-info').classList.remove('hidden');
+        function renderPhotoCanvas() {
+            if(!originalImage) return;
+            ctx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
+            ctx.drawImage(originalImage, 0, 0);
+        }
+
+        function changeBgColor(color) {
+            selectedBgColor = color;
+            document.getElementById('custom-bg-color').value = color.startsWith('#') ? color : '#D32F2F';
+            if(originalImage) autoRemoveBg();
         }
 
         function updateTolerance(val) {
             document.getElementById('val-tolerance').innerText = val;
-            if (originalImageData) processBgRemoval();
+            if(originalImage) autoRemoveBg();
         }
 
         function updateFilter() {
@@ -836,536 +637,426 @@
             const c = document.getElementById('img-contrast').value;
             document.getElementById('val-brightness').innerText = b + '%';
             document.getElementById('val-contrast').innerText = c + '%';
-            if (originalImageData) processBgRemoval();
+            photoCanvas.style.filter = `brightness(${b}%) contrast(${c}%)`;
         }
 
-        function changeBgColor(colorHex) {
-            if (colorHex !== 'transparent') {
-                document.getElementById('custom-bg-color').value = colorHex;
-            }
-            if (originalImageData) processBgRemoval(colorHex);
+        function pickColorEyedropper() {
+            if(!originalImage) return alert("Unggah foto terlebih dahulu!");
+            isEyedropperActive = true;
+            document.getElementById('pipette-info').classList.remove('hidden');
         }
+
+        photoCanvas.addEventListener('click', function(e) {
+            if(!isEyedropperActive || !originalImage) return;
+            const rect = photoCanvas.getBoundingClientRect();
+            const scaleX = photoCanvas.width / rect.width;
+            const scaleY = photoCanvas.height / rect.height;
+            const x = Math.floor((e.clientX - rect.left) * scaleX);
+            const y = Math.floor((e.clientY - rect.top) * scaleY);
+            
+            ctx.drawImage(originalImage, 0, 0);
+            const pixel = ctx.getImageData(x, y, 1, 1).data;
+            removeBgByColor(pixel[0], pixel[1], pixel[2]);
+            
+            isEyedropperActive = false;
+            document.getElementById('pipette-info').classList.add('hidden');
+        });
 
         function autoRemoveBg() {
-            if (!originalImageData) {
-                showToast('Unggah foto pelanggan terlebih dahulu!', 'fa-triangle-exclamation');
-                return;
-            }
-            processBgRemoval();
-            showToast('Latar belakang berhasil diperbarui!', 'fa-wand-magic-sparkles');
+            if(!originalImage) return alert("Unggah foto terlebih dahulu!");
+            ctx.drawImage(originalImage, 0, 0);
+            const cornerPixel = ctx.getImageData(5, 5, 1, 1).data;
+            removeBgByColor(cornerPixel[0], cornerPixel[1], cornerPixel[2]);
         }
 
-        function processBgRemoval(newBgHex = null) {
-            if (!originalImageData) return;
-
-            const newColor = newBgHex || document.getElementById('custom-bg-color').value;
-            const tolerance = parseInt(document.getElementById('bg-tolerance').value);
-            const brightness = parseInt(document.getElementById('img-brightness').value) / 100;
-            const contrast = parseInt(document.getElementById('img-contrast').value) / 100;
-
-            const imgData = new ImageData(
-                new Uint8ClampedArray(originalImageData.data),
-                originalImageData.width,
-                originalImageData.height
-            );
-
+        function removeBgByColor(targetR, targetG, targetB) {
+            ctx.drawImage(originalImage, 0, 0);
+            const imgData = ctx.getImageData(0, 0, photoCanvas.width, photoCanvas.height);
             const data = imgData.data;
-            let bgR = 211, bgG = 47, bgB = 47, bgA = 255;
-
-            if (newColor !== 'transparent') {
-                const hex = newColor.replace('#', '');
-                bgR = parseInt(hex.substring(0, 2), 16);
-                bgG = parseInt(hex.substring(2, 4), 16);
-                bgB = parseInt(hex.substring(4, 6), 16);
-            } else {
-                bgA = 0;
-            }
-
-            const target = targetBgColorRGB || { r: 255, g: 255, b: 255 };
+            const tolerance = parseInt(document.getElementById('bg-tolerance').value);
 
             for (let i = 0; i < data.length; i += 4) {
-                let r = data[i];
-                let g = data[i + 1];
-                let b = data[i + 2];
-
-                // Calculate Color Delta from target background
-                const delta = Math.sqrt(
-                    Math.pow(r - target.r, 2) +
-                    Math.pow(g - target.g, 2) +
-                    Math.pow(b - target.b, 2)
-                );
-
-                if (delta < tolerance * 1.8) {
-                    // Replace with chosen Background
-                    data[i] = bgR;
-                    data[i + 1] = bgG;
-                    data[i + 2] = bgB;
-                    data[i + 3] = bgA;
-                } else {
-                    // Apply Brightness & Contrast Adjustment to foreground
-                    r = ((r - 128) * contrast + 128) * brightness;
-                    g = ((g - 128) * contrast + 128) * brightness;
-                    b = ((b - 128) * contrast + 128) * brightness;
-
-                    data[i] = Math.min(255, Math.max(0, r));
-                    data[i + 1] = Math.min(255, Math.max(0, g));
-                    data[i + 2] = Math.min(255, Math.max(0, b));
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                const dist = Math.sqrt((r - targetR)**2 + (g - targetG)**2 + (b - targetB)**2);
+                if(dist < tolerance * 1.8) {
+                    data[i + 3] = 0;
                 }
             }
 
-            ctx.putImageData(imgData, 0, 0);
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = photoCanvas.width;
+            tempCanvas.height = photoCanvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            if(selectedBgColor !== 'transparent') {
+                tempCtx.fillStyle = selectedBgColor;
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            }
+
+            const fgCanvas = document.createElement('canvas');
+            fgCanvas.width = photoCanvas.width;
+            fgCanvas.height = photoCanvas.height;
+            fgCanvas.getContext('2d').putImageData(imgData, 0, 0);
+
+            tempCtx.drawImage(fgCanvas, 0, 0);
+            ctx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
+            ctx.drawImage(tempCanvas, 0, 0);
         }
 
         function downloadEditedPhoto() {
-            if (!originalImageData) {
-                showToast('Tidak ada foto yang dapat diunduh!', 'fa-triangle-exclamation');
-                return;
-            }
+            if(!originalImage) return alert("Belum ada foto yang diedit!");
             const link = document.createElement('a');
-            link.download = 'pasfoto-edit-smartprint.png';
-            link.href = canvas.toDataURL('image/png');
+            link.download = 'pasfoto-edited.png';
+            link.href = photoCanvas.toDataURL('image/png');
             link.click();
         }
 
         function sendToGridPrint() {
-            if (!originalImageData) {
-                showToast('Unggah dan edit foto terlebih dahulu!', 'fa-triangle-exclamation');
-                return;
-            }
-            const dataUrl = canvas.toDataURL('image/png');
-            
-            // Auto add 4 pcs 4x6 by default
-            gridPhotos.push({
-                id: Date.now(),
-                src: dataUrl,
-                size: '4x6',
-                qty: 4
-            });
-
-            // Automatically add Bg Edit service fee to cart
-            const editPrice = parseInt(document.getElementById('price-edit-bg').value) || 5000;
-            addToCart('Jasa Edit / Hapus Background Pasfoto', editPrice, 1);
-
-            renderGridPreview();
-            switchTab('grid-print');
-            showToast('Foto & Jasa Edit berhasil dikirim ke Layout Cetak!', 'fa-right-to-bracket');
-        }
-
-        // ==========================================
-        // TAB 2: LAYOUT CETAK FOTO (GRID A4) LOGIC
-        // ==========================================
-        function addPhotoToGrid() {
-            const uploadInput = document.getElementById('grid-photo-upload');
-            const dim = document.getElementById('photo-dimension').value;
-            const qty = parseInt(document.getElementById('photo-qty').value) || 1;
-
-            if (uploadInput.files && uploadInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    gridPhotos.push({
-                        id: Date.now(),
-                        src: e.target.result,
-                        size: dim,
-                        qty: qty
-                    });
-                    renderGridPreview();
-                    showToast('Foto ditambahkan ke lembar cetak!', 'fa-plus');
-                };
-                reader.readAsDataURL(uploadInput.files[0]);
-            } else if (originalImageData) {
-                gridPhotos.push({
-                    id: Date.now(),
-                    src: canvas.toDataURL('image/png'),
-                    size: dim,
-                    qty: qty
+            if(!originalImage) return alert("Edit foto terlebih dahulu!");
+            const dataUrl = photoCanvas.toDataURL('image/png');
+            // Tambahkan 4 pcs default
+            for(let i = 0; i < 4; i++) {
+                gridItems.push({
+                    id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                    src: dataUrl,
+                    dim: '4x6'
                 });
+            }
+            switchTab('grid-print');
+            renderGridPreview();
+        }
+
+        // --- SECTION 2: GRID PRINT LAYOUT & DRAG AND DROP ---
+        document.getElementById('grid-photo-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const dim = document.getElementById('photo-dimension').value;
+                const qty = parseInt(document.getElementById('photo-qty').value) || 1;
+                for(let i = 0; i < qty; i++) {
+                    gridItems.push({
+                        id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                        src: evt.target.result,
+                        dim: dim
+                    });
+                }
                 renderGridPreview();
-                showToast('Foto dari editor dimasukkan ke grid!', 'fa-plus');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function addPhotoToGrid() {
+            if(gridItems.length === 0) {
+                alert("Pilih file foto dari komputer atau dari Tab Edit Pasfoto!");
             } else {
-                showToast('Pilih file foto terlebih dahulu!', 'fa-triangle-exclamation');
+                const lastSrc = gridItems[gridItems.length - 1].src;
+                const dim = document.getElementById('photo-dimension').value;
+                const qty = parseInt(document.getElementById('photo-qty').value) || 1;
+                for(let i = 0; i < qty; i++) {
+                    gridItems.push({
+                        id: Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                        src: lastSrc,
+                        dim: dim
+                    });
+                }
+                renderGridPreview();
             }
         }
 
-        function removeGridItem(id) {
-            gridPhotos = gridPhotos.filter(item => item.id !== id);
-            renderGridPreview();
-        }
+        function updatePaperDimensions() {
+            const size = document.getElementById('paper-size').value;
+            const orientation = document.getElementById('paper-orientation').value;
+            const printArea = document.getElementById('printArea');
 
-        function clearGrid() {
-            gridPhotos = [];
-            renderGridPreview();
-            showToast('Lembar cetak dibersihkan.', 'fa-trash');
+            let w = '210mm', h = '297mm'; // Default A4 Portrait
+
+            if(size === 'A4') {
+                if(orientation === 'portrait') { w = '210mm'; h = '297mm'; }
+                else { w = '297mm'; h = '210mm'; }
+            } else if(size === 'F4') {
+                if(orientation === 'portrait') { w = '215mm'; h = '330mm'; }
+                else { w = '330mm'; h = '215mm'; }
+            }
+
+            printArea.style.width = w;
+            printArea.style.minHeight = h;
         }
 
         function renderGridPreview() {
             const printArea = document.getElementById('printArea');
-            const emptyMsg = document.getElementById('grid-empty-msg');
             const showBorder = document.getElementById('show-border').value === 'true';
             const gapClass = document.getElementById('photo-gap').value;
 
-            // Clear previous items
-            const existingItems = printArea.querySelectorAll('.grid-photo-item');
-            existingItems.forEach(el => el.remove());
-
-            if (gridPhotos.length === 0) {
-                emptyMsg.style.display = 'block';
+            printArea.innerHTML = '';
+            
+            if(gridItems.length === 0) {
+                printArea.innerHTML = `
+                    <p id="grid-empty-msg" class="text-slate-400 text-center w-full my-auto no-print py-20">
+                        <i class="fa-solid fa-border-all text-5xl block mb-3 text-slate-300"></i>
+                        Lembar kertas masih kosong.<br>Tambahkan foto dari panel samping atau dari menu Edit Pasfoto.
+                    </p>`;
                 return;
-            } else {
-                emptyMsg.style.display = 'none';
             }
 
-            printArea.className = `bg-white shadow-2xl p-6 relative flex flex-wrap content-start items-start ${gapClass} border border-slate-300 transition-all`;
-
-            // Dimensions lookup in mm
             const dimMap = {
                 '2x3': { w: '20mm', h: '30mm' },
                 '3x4': { w: '30mm', h: '40mm' },
-                '4x6': { w: '40mm', h: '60mm' },
+                '4x6': { w: '38mm', h: '56mm' },
                 '3R':  { w: '89mm', h: '127mm' },
                 '4R':  { w: '102mm', h: '152mm' }
             };
 
-            gridPhotos.forEach(item => {
-                const dim = dimMap[item.size] || dimMap['4x6'];
-                for (let i = 0; i < item.qty; i++) {
-                    const div = document.createElement('div');
-                    div.className = `grid-photo-item relative group overflow-hidden ${showBorder ? 'border border-slate-400 border-dashed' : ''}`;
-                    div.style.width = dim.w;
-                    div.style.height = dim.h;
+            const container = document.createElement('div');
+            container.className = `flex flex-wrap content-start items-start w-full h-full ${gapClass}`;
 
-                    div.innerHTML = `
-                        <img src="${item.src}" class="w-full h-full object-cover">
-                        <button onclick="removeGridItem(${item.id})" class="no-print absolute top-0.5 right-0.5 bg-rose-600 text-white w-4 h-4 rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow" title="Hapus foto">
-                            &times;
-                        </button>
-                    `;
-                    printArea.appendChild(div);
-                }
+            gridItems.forEach((item, index) => {
+                const size = dimMap[item.dim] || dimMap['4x6'];
+                const imgBox = document.createElement('div');
+                imgBox.style.width = size.w;
+                imgBox.style.height = size.h;
+                imgBox.className = `bg-cover bg-center relative group cursor-move transition-transform ${showBorder ? 'border border-slate-300 border-dashed' : ''}`;
+                imgBox.style.backgroundImage = `url(${item.src})`;
+                
+                // Atribut Drag & Drop
+                imgBox.setAttribute('draggable', 'true');
+                imgBox.setAttribute('data-index', index);
+                
+                // Event Listener Drag and Drop
+                imgBox.addEventListener('dragstart', handleDragStart);
+                imgBox.addEventListener('dragover', handleDragOver);
+                imgBox.addEventListener('dragenter', handleDragEnter);
+                imgBox.addEventListener('dragleave', handleDragLeave);
+                imgBox.addEventListener('drop', handleDrop);
+                imgBox.addEventListener('dragend', handleDragEnd);
+
+                // Tombol Hapus per foto
+                imgBox.innerHTML = `
+                    <button onclick="removeGridItem(${index})" class="no-print absolute top-0 right-0 bg-rose-600 text-white w-4 h-4 text-[9px] rounded-bl hidden group-hover:flex items-center justify-center font-bold">
+                        ✕
+                    </button>`;
+                container.appendChild(imgBox);
             });
+
+            printArea.appendChild(container);
         }
 
-        function sendGridToCashier() {
-            if (gridPhotos.length === 0) {
-                showToast('Lembar cetak kosong!', 'fa-triangle-exclamation');
-                return;
+        // --- DRAG AND DROP HANDLERS ---
+        function handleDragStart(e) {
+            draggedItemIndex = parseInt(this.getAttribute('data-index'));
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e) {
+            this.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) e.stopPropagation();
+            const targetIndex = parseInt(this.getAttribute('data-index'));
+            
+            if (draggedItemIndex !== null && draggedItemIndex !== targetIndex) {
+                // Pindahkan posisi item di array gridItems
+                const movedItem = gridItems.splice(draggedItemIndex, 1)[0];
+                gridItems.splice(targetIndex, 0, movedItem);
+                renderGridPreview();
             }
+            return false;
+        }
 
-            let totalPhotos = 0;
-            gridPhotos.forEach(p => totalPhotos += p.qty);
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            draggedItemIndex = null;
+        }
 
-            // Estimate total A4 sheets (approx 16 pcs 4x6 per A4)
-            const sheetCount = Math.max(1, Math.ceil(totalPhotos / 16));
-            const sheetPrice = parseInt(document.getElementById('price-photo-a4').value) || 5000;
+        function removeGridItem(index) {
+            gridItems.splice(index, 1);
+            renderGridPreview();
+        }
 
-            addToCart(`Cetak Lembar Foto A4 (${totalPhotos} foto)`, sheetPrice, sheetCount);
-            switchTab('pos-cashier');
-            showToast('Biaya cetak foto berhasil dikirim ke Kasir!', 'fa-cart-plus');
+        function clearGrid() {
+            gridItems = [];
+            renderGridPreview();
         }
 
         function printPhotoSheet() {
-            if (gridPhotos.length === 0) {
-                showToast('Tidak ada foto untuk dicetak!', 'fa-triangle-exclamation');
-                return;
-            }
-            document.body.className = 'printing-sheet';
+            if(gridItems.length === 0) return alert("Grid foto masih kosong!");
+            document.body.className = "bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800 antialiased printing-sheet";
             window.print();
-            setTimeout(() => { document.body.className = ''; }, 1000);
+            setTimeout(() => { document.body.className = "bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800 antialiased"; }, 1000);
         }
 
-        // ==========================================
-        // TAB 3: DETEKSI WARNA PDF LOGIC
-        // ==========================================
-        let pdfAnalysisResult = null;
+        function sendGridToCashier() {
+            if(gridItems.length === 0) return alert("Grid foto masih kosong!");
+            const paperType = document.getElementById('paper-size').value;
+            quickAddToCart(`Cetak Lembar Foto ${paperType} (${gridItems.length} pcs foto)`, 15000);
+            switchTab('pos-cashier');
+        }
 
+        // --- SECTION 3: DETEKSI WARNA PDF ENGINE ---
         async function analyzePDF(file) {
-            if (!file || file.type !== 'application/pdf') {
-                showToast('Silakan pilih file format PDF!', 'fa-triangle-exclamation');
-                return;
-            }
-
-            currentPdfFile = file;
-            if (currentPdfBlobUrl) {
-                URL.revokeObjectURL(currentPdfBlobUrl);
-            }
-            currentPdfBlobUrl = URL.createObjectURL(file);
-
-            const loading = document.getElementById('pdf-loading');
-            const resultBox = document.getElementById('pdf-result');
-            const statusText = document.getElementById('pdf-status-text');
-            const progressBar = document.getElementById('pdf-progress-bar');
-            const breakdownBox = document.getElementById('page-breakdown');
-
-            loading.classList.remove('hidden');
-            resultBox.classList.add('hidden');
-            progressBar.style.width = '0%';
-            breakdownBox.innerHTML = '';
-
+            if(!file) return;
+            document.getElementById('pdf-loading').classList.remove('hidden');
+            document.getElementById('pdf-result').classList.add('hidden');
+            document.getElementById('pdf-progress-bar').style.width = '10%';
+            
             try {
                 const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                const totalPages = pdf.numPages;
-
-                let bwCount = 0;
-                let colorCount = 0;
-                let breakdownHTML = '';
-                let pageDetails = [];
-
-                for (let i = 1; i <= totalPages; i++) {
-                    statusText.innerText = `Menganalisis Warna Halaman ${i} dari ${totalPages}...`;
-                    progressBar.style.width = `${Math.round((i / totalPages) * 100)}%`;
-
-                    const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 0.4 });
-                    
-                    const offCanvas = document.createElement('canvas');
-                    const offCtx = offCanvas.getContext('2d');
-                    offCanvas.width = viewport.width;
-                    offCanvas.height = viewport.height;
-
-                    await page.render({ canvasContext: offCtx, viewport: viewport }).promise;
-
-                    const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height).data;
-                    let isColor = false;
-                    let colorPixels = 0;
-
-                    // Sample pixels across canvas
-                    for (let p = 0; p < imgData.length; p += 16) {
-                        const r = imgData[p];
-                        const g = imgData[p + 1];
-                        const b = imgData[p + 2];
-
-                        // Calculate Color Channel Variance
-                        const maxDiff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(b - r));
-                        if (maxDiff > 22) { // Color saturation threshold
-                            colorPixels++;
-                            if (colorPixels > (imgData.length / 16) * 0.004) {
-                                isColor = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    pageDetails.push({ pageNum: i, isColor: isColor });
-
-                    if (isColor) {
-                        colorCount++;
-                        breakdownHTML += `
-                            <div class="flex justify-between items-center bg-amber-50 p-2 rounded-lg border border-amber-200">
-                                <span>Halaman ${i}</span>
-                                <span class="bg-amber-500 text-white font-bold px-2 py-0.5 rounded text-[10px]">WARNA</span>
-                            </div>`;
-                    } else {
-                        bwCount++;
-                        breakdownHTML += `
-                            <div class="flex justify-between items-center bg-slate-100 p-2 rounded-lg border border-slate-200">
-                                <span>Halaman ${i}</span>
-                                <span class="bg-slate-600 text-white font-bold px-2 py-0.5 rounded text-[10px]">HITAM PUTIH</span>
-                            </div>`;
-                    }
-                }
-
-                pdfAnalysisResult = { totalPages, bwCount, colorCount, fileName: file.name, pageDetails };
-
-                document.getElementById('res-total').innerText = totalPages;
-                document.getElementById('res-bw').innerText = bwCount;
-                document.getElementById('res-color').innerText = colorCount;
+                currentPdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
                 
-                // Update batch print counters & status text
-                document.getElementById('btn-count-color').innerText = `${colorCount} Hal`;
-                document.getElementById('btn-count-bw').innerText = `${bwCount} Hal`;
-                document.getElementById('pdf-file-info-text').innerText = `${file.name} (${totalPages} Hal, ${(file.size / (1024*1024)).toFixed(2)} MB)`;
-
-                breakdownBox.innerHTML = breakdownHTML;
-
-                loading.classList.add('hidden');
-                resultBox.classList.remove('hidden');
-                showToast('Analisis PDF selesai & dokumen siap dicetak!', 'fa-circle-check');
-
-            } catch (err) {
-                console.error(err);
-                loading.classList.add('hidden');
-                showToast('Gagal membaca dokumen PDF!', 'fa-triangle-exclamation');
-            }
-        }
-
-        function openPdfInNewTab() {
-            if (currentPdfBlobUrl) {
-                window.open(currentPdfBlobUrl, '_blank');
-            } else {
-                showToast('Tidak ada dokumen PDF yang dimuat!', 'fa-triangle-exclamation');
-            }
-        }
-
-        function printPdfNative() {
-            if (!currentPdfBlobUrl) {
-                showToast('Unggah file PDF terlebih dahulu!', 'fa-triangle-exclamation');
-                return;
-            }
-            let iframe = document.getElementById('pdf-print-iframe');
-            if (!iframe) {
-                iframe = document.createElement('iframe');
-                iframe.id = 'pdf-print-iframe';
-                iframe.className = 'hidden';
-                document.body.appendChild(iframe);
-            }
-            iframe.src = currentPdfBlobUrl;
-            showToast('Membuka dialog cetak PDF...', 'fa-print');
-            iframe.onload = function() {
-                try {
-                    iframe.contentWindow.focus();
-                    iframe.contentWindow.print();
-                } catch(e) {
-                    window.open(currentPdfBlobUrl, '_blank');
-                }
-            };
-        }
-
-        async function printPdfFiltered(filterType) {
-            if (!pdfAnalysisResult || !currentPdfFile) {
-                showToast('Unggah dan deteksi PDF terlebih dahulu!', 'fa-triangle-exclamation');
-                return;
-            }
-
-            const targetPages = pdfAnalysisResult.pageDetails.filter(p => filterType === 'color' ? p.isColor : !p.isColor);
-            if (targetPages.length === 0) {
-                showToast(`Tidak ada halaman ${filterType === 'color' ? 'Warna' : 'Hitam-Putih'} pada dokumen ini!`, 'fa-triangle-exclamation');
-                return;
-            }
-
-            showToast(`Menyiapkan pratinjau ${targetPages.length} halaman ${filterType === 'color' ? 'Warna' : 'Hitam-Putih'}...`, 'fa-circle-notch');
-
-            const container = document.getElementById('pdfPrintArea');
-            const previewContainer = document.getElementById('pdf-filter-preview-list');
-            container.innerHTML = '';
-            previewContainer.innerHTML = '';
-
-            try {
-                const arrayBuffer = await currentPdfFile.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-                for (let pageInfo of targetPages) {
-                    const page = await pdf.getPage(pageInfo.pageNum);
-                    const viewport = page.getViewport({ scale: 1.5 });
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-
-                    const ctx = canvas.getContext('2d');
-                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-
-                    const imgUrl = canvas.toDataURL('image/png');
-
-                    // Element untuk pencetakan (Print Area)
-                    const printDiv = document.createElement('div');
-                    printDiv.className = 'pdf-print-page flex justify-center py-2';
-                    const printImg = document.createElement('img');
-                    printImg.src = imgUrl;
-                    printImg.style.width = '210mm';
-                    printImg.style.height = 'auto';
-                    printDiv.appendChild(printImg);
-                    container.appendChild(printDiv);
-
-                    // Element untuk pratinjau layar modal (Preview Area)
-                    const prevDiv = document.createElement('div');
-                    prevDiv.className = 'bg-white p-3 rounded-lg border border-slate-300 text-center space-y-2 shadow-sm';
-                    prevDiv.innerHTML = `
-                        <span class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border inline-block">
-                            Halaman ${pageInfo.pageNum} (${filterType === 'color' ? 'Warna' : 'Hitam Putih'})
-                        </span>
-                        <img src="${imgUrl}" class="max-w-full h-auto mx-auto border rounded shadow-md">
-                    `;
-                    previewContainer.appendChild(prevDiv);
+                const numPages = currentPdfDoc.numPages;
+                pdfAnalysisResult = { totalPages: numPages, bwPages: [], colorPages: [] };
+                
+                for(let i = 1; i <= numPages; i++) {
+                    document.getElementById('pdf-status-text').innerText = `Menganalisis Halaman ${i} dari ${numPages}...`;
+                    document.getElementById('pdf-progress-bar').style.width = `${Math.floor((i / numPages) * 100)}%`;
+                    
+                    const page = await currentPdfDoc.getPage(i);
+                    const isColor = await checkPageColor(page);
+                    
+                    if(isColor) {
+                        pdfAnalysisResult.colorPages.push(i);
+                    } else {
+                        pdfAnalysisResult.bwPages.push(i);
+                    }
                 }
 
-                document.getElementById('filter-preview-title').innerText = `Pratinjau Cetak Hal. ${filterType === 'color' ? 'Warna' : 'Hitam Putih'} (${targetPages.length} Halaman)`;
-                document.getElementById('modal-pdf-filter').classList.remove('hidden');
+                document.getElementById('res-total').innerText = numPages;
+                document.getElementById('res-bw').innerText = pdfAnalysisResult.bwPages.length;
+                document.getElementById('res-color').innerText = pdfAnalysisResult.colorPages.length;
+                
+                document.getElementById('badge-color-pages').innerText = `${pdfAnalysisResult.colorPages.length} Hal`;
+                document.getElementById('badge-bw-pages').innerText = `${pdfAnalysisResult.bwPages.length} Hal`;
+                document.getElementById('pdf-file-info-text').innerText = `${file.name} (${numPages} Halaman)`;
+
+                document.getElementById('pdf-loading').classList.add('hidden');
+                document.getElementById('pdf-result').classList.remove('hidden');
 
             } catch (err) {
-                console.error(err);
-                showToast('Gagal memproses cetak filter PDF!', 'fa-triangle-exclamation');
+                alert("Gagal membaca file PDF: " + err.message);
+                document.getElementById('pdf-loading').classList.add('hidden');
             }
         }
 
-        function doPrintPdfFiltered() {
-            document.body.className = 'printing-pdf';
+        async function checkPageColor(page) {
+            const viewport = page.getViewport({ scale: 0.3 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            
+            const imgData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let colorPixelCount = 0;
+
+            for(let i = 0; i < imgData.length; i += 40) {
+                const r = imgData[i];
+                const g = imgData[i+1];
+                const b = imgData[i+2];
+
+                if(Math.abs(r - g) > 18 || Math.abs(g - b) > 18 || Math.abs(r - b) > 18) {
+                    colorPixelCount++;
+                    if(colorPixelCount > 25) return true;
+                }
+            }
+            return false;
+        }
+
+        function openPdfPreview() {
+            alert("Membuka jendela cetak bawaan browser untuk pratinjau PDF.");
             window.print();
-            setTimeout(() => { document.body.className = ''; }, 1000);
-        }
-
-        function closePdfFilterModal() {
-            document.getElementById('modal-pdf-filter').classList.add('hidden');
         }
 
         function sendPdfToCashier() {
-            if (!pdfAnalysisResult) return;
+            if(pdfAnalysisResult.totalPages === 0) return;
+            const bwCount = pdfAnalysisResult.bwPages.length;
+            const colorCount = pdfAnalysisResult.colorPages.length;
 
-            const priceBW = parseInt(document.getElementById('price-bw').value) || 500;
-            const priceColor = parseInt(document.getElementById('price-color').value) || 1500;
-
-            if (pdfAnalysisResult.bwCount > 0) {
-                addToCart(`Cetak PDF B&W (${pdfAnalysisResult.fileName})`, priceBW, pdfAnalysisResult.bwCount);
-            }
-            if (pdfAnalysisResult.colorCount > 0) {
-                addToCart(`Cetak PDF Warna (${pdfAnalysisResult.fileName})`, priceColor, pdfAnalysisResult.colorCount);
-            }
-
+            if(bwCount > 0) quickAddToCart(`Cetak PDF Hitam-Putih (${bwCount} hal)`, bwCount * 500);
+            if(colorCount > 0) quickAddToCart(`Cetak PDF Warna (${colorCount} hal)`, colorCount * 1500);
+            
             switchTab('pos-cashier');
-            showToast('Item PDF dimasukkan ke keranjang kasir!', 'fa-cart-plus');
         }
 
-        // ==========================================
-        // TAB 4: KASIR & POS SYSTEM LOGIC
-        // ==========================================
-        function addToCart(name, price, qty = 1) {
-            const existing = cart.find(item => item.name === name && item.price === price);
-            if (existing) {
-                existing.qty += qty;
+        function printPdfNative(mode) {
+            alert(`Menyiapkan cetakan mode [${mode.toUpperCase()}]. Gunakan opsi pengaturan halaman pada dialog cetak printer.`);
+            window.print();
+        }
+
+        // --- SECTION 4: KASIR POS ENGINE ---
+        function quickAddToCart(name, price) {
+            const existing = cart.find(item => item.name === name);
+            if(existing) {
+                existing.qty++;
             } else {
-                cart.push({ id: Date.now() + Math.random(), name, price, qty });
+                cart.push({ name: name, price: price, qty: 1 });
             }
             renderCart();
         }
 
-        function addPresetItem(name, price) {
-            addToCart(name, price, 1);
-            showToast(`Preset '${name}' ditambahkan!`, 'fa-cart-plus');
+        function addCustomToCart() {
+            const name = document.getElementById('custom-item-name').value.trim();
+            const price = parseInt(document.getElementById('custom-item-price').value);
+            if(!name || isNaN(price)) return alert("Masukkan nama dan harga produk yang valid!");
+            
+            quickAddToCart(name, price);
+            document.getElementById('custom-item-name').value = '';
+            document.getElementById('custom-item-price').value = '';
         }
 
-        function addManualItemToCart() {
-            const nameInput = document.getElementById('manual-item-name');
-            const priceInput = document.getElementById('manual-item-price');
-            const qtyInput = document.getElementById('manual-item-qty');
+        function renderCart() {
+            const cartList = document.getElementById('cart-list');
+            cartList.innerHTML = '';
 
-            const name = nameInput.value.trim();
-            const price = parseInt(priceInput.value);
-            const qty = parseInt(qtyInput.value) || 1;
+            let subtotal = 0;
+            let totalItems = 0;
 
-            if (!name || isNaN(price) || price < 0) {
-                showToast('Isi nama item dan harga dengan benar!', 'fa-triangle-exclamation');
-                return;
+            if(cart.length === 0) {
+                cartList.innerHTML = `<p id="cart-empty-msg" class="text-center text-slate-400 text-xs py-10">Keranjang masih kosong</p>`;
+            } else {
+                cart.forEach((item, index) => {
+                    const itemTotal = item.price * item.qty;
+                    subtotal += itemTotal;
+                    totalItems += item.qty;
+
+                    const row = document.createElement('div');
+                    row.className = "flex justify-between items-center bg-slate-50 p-2 rounded-lg border text-xs";
+                    row.innerHTML = `
+                        <div class="flex-grow">
+                            <span class="font-bold text-slate-800 block">${item.name}</span>
+                            <span class="text-slate-500">Rp ${item.price.toLocaleString()} x ${item.qty}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-indigo-700">Rp ${itemTotal.toLocaleString()}</span>
+                            <button onclick="removeCartItem(${index})" class="text-rose-500 hover:text-rose-700 font-bold px-1.5">✕</button>
+                        </div>`;
+                    cartList.appendChild(row);
+                });
             }
 
-            addToCart(name, price, qty);
-            nameInput.value = '';
-            priceInput.value = '';
-            qtyInput.value = '1';
-            showToast('Item manual berhasil ditambahkan!', 'fa-plus');
+            document.getElementById('pos-subtotal').innerText = `Rp ${subtotal.toLocaleString()}`;
+            document.getElementById('cart-item-count').innerText = totalItems;
+            calculateChange();
         }
 
-        function updateCartQty(id, delta) {
-            const item = cart.find(i => i.id === id);
-            if (item) {
-                item.qty += delta;
-                if (item.qty <= 0) {
-                    cart = cart.filter(i => i.id !== id);
-                }
-            }
-            renderCart();
-        }
-
-        function removeFromCart(id) {
-            cart = cart.filter(i => i.id !== id);
+        function removeCartItem(index) {
+            cart.splice(index, 1);
             renderCart();
         }
 
@@ -1374,206 +1065,104 @@
             renderCart();
         }
 
-        function renderCart() {
-            const tbody = document.getElementById('cart-table-body');
-            const badgeCount = document.getElementById('cart-item-count');
-
-            let totalItems = 0;
-            cart.forEach(i => totalItems += i.qty);
-            badgeCount.innerText = totalItems;
-
-            if (cart.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="text-center py-12 text-slate-400">
-                            <i class="fa-solid fa-cart-arrow-down text-3xl mb-2 block text-slate-300"></i>
-                            Keranjang transaksi masih kosong
-                        </td>
-                    </tr>`;
-                calculatePOS();
-                return;
-            }
-
-            let html = '';
-            cart.forEach(item => {
-                const subtotal = item.price * item.qty;
-                html += `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="p-3 font-semibold text-slate-800">${item.name}</td>
-                        <td class="p-3 text-right">Rp ${item.price.toLocaleString('id-ID')}</td>
-                        <td class="p-3 text-center">
-                            <div class="flex items-center justify-center gap-1.5">
-                                <button onclick="updateCartQty(${item.id}, -1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold flex items-center justify-center text-slate-700">-</button>
-                                <span class="font-bold w-6 text-center">${item.qty}</span>
-                                <button onclick="updateCartQty(${item.id}, 1)" class="w-6 h-6 rounded bg-slate-200 hover:bg-slate-300 font-bold flex items-center justify-center text-slate-700">+</button>
-                            </div>
-                        </td>
-                        <td class="p-3 text-right font-bold text-indigo-700">Rp ${subtotal.toLocaleString('id-ID')}</td>
-                        <td class="p-3 text-center">
-                            <button onclick="removeFromCart(${item.id})" class="text-rose-500 hover:text-rose-700 p-1">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </td>
-                    </tr>`;
-            });
-
-            tbody.innerHTML = html;
-            calculatePOS();
-        }
-
-        function calculatePOS() {
+        function calculateChange() {
             let subtotal = 0;
-            cart.forEach(i => subtotal += (i.price * i.qty));
-
-            const discount = parseInt(document.getElementById('pos-discount').value) || 0;
-            const grandTotal = Math.max(0, subtotal - discount);
-
-            const cashPaid = parseInt(document.getElementById('pos-cash-paid').value) || 0;
-            const change = cashPaid - grandTotal;
-
-            document.getElementById('pos-grand-total').innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
-
-            const changeEl = document.getElementById('pos-change');
-            if (change >= 0) {
-                changeEl.innerText = `Rp ${change.toLocaleString('id-ID')}`;
-                changeEl.className = 'text-sm font-black text-emerald-700 p-2 bg-emerald-100 rounded-lg text-right';
+            cart.forEach(item => subtotal += (item.price * item.qty));
+            const pay = parseInt(document.getElementById('pos-pay-amount').value) || 0;
+            const change = pay - subtotal;
+            
+            const changeEl = document.getElementById('pos-change-amount');
+            if(change >= 0) {
+                changeEl.innerText = `Rp ${change.toLocaleString()}`;
+                changeEl.className = "font-bold text-emerald-600 text-base";
             } else {
-                changeEl.innerText = `- Rp ${Math.abs(change).toLocaleString('id-ID')}`;
-                changeEl.className = 'text-sm font-black text-rose-600 p-2 bg-rose-100 rounded-lg text-right';
+                changeEl.innerText = `Kurang Rp ${Math.abs(change).toLocaleString()}`;
+                changeEl.className = "font-bold text-rose-600 text-base";
             }
-        }
-
-        function setQuickCash(amount) {
-            let subtotal = 0;
-            cart.forEach(i => subtotal += (i.price * i.qty));
-            const discount = parseInt(document.getElementById('pos-discount').value) || 0;
-            const grandTotal = Math.max(0, subtotal - discount);
-
-            if (amount === 'exact') {
-                document.getElementById('pos-cash-paid').value = grandTotal;
-            } else {
-                document.getElementById('pos-cash-paid').value = amount;
-            }
-            calculatePOS();
         }
 
         function processCheckout() {
-            if (cart.length === 0) {
-                showToast('Keranjang transaksi masih kosong!', 'fa-triangle-exclamation');
-                return;
-            }
-
+            if(cart.length === 0) return alert("Keranjang belanja masih kosong!");
             let subtotal = 0;
-            cart.forEach(i => subtotal += (i.price * i.qty));
-            const discount = parseInt(document.getElementById('pos-discount').value) || 0;
-            const grandTotal = Math.max(0, subtotal - discount);
-            const cashPaid = parseInt(document.getElementById('pos-cash-paid').value) || 0;
-            const method = document.getElementById('pos-payment-method').value;
+            cart.forEach(item => subtotal += (item.price * item.qty));
+            const pay = parseInt(document.getElementById('pos-pay-amount').value) || 0;
+            
+            if(pay < subtotal) return alert("Uang pembayaran kurang!");
 
-            if (method === 'Tunai' && cashPaid < grandTotal) {
-                showToast('Uang pembayaran masih kurang!', 'fa-triangle-exclamation');
-                return;
-            }
-
-            // Build Receipt Elements
             const now = new Date();
-            const dateStr = now.toLocaleDateString('id-ID') + ' ' + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-            const trxNo = 'TRX-' + now.getFullYear() + (now.getMonth()+1).toString().padStart(2,'0') + now.getDate().toString().padStart(2,'0') + '-' + Math.floor(1000 + Math.random() * 9000);
-
-            document.getElementById('rec-no').innerText = trxNo;
-            document.getElementById('rec-date').innerText = dateStr;
-
-            let recItemsHTML = '';
-            cart.forEach(i => {
-                recItemsHTML += `
-                    <tr>
-                        <td style="padding: 2px 0;">${i.name} x${i.qty}</td>
-                        <td style="text-align: right; padding: 2px 0;">Rp ${(i.price * i.qty).toLocaleString('id-ID')}</td>
-                    </tr>`;
+            document.getElementById('rec-date').innerText = now.toLocaleString('id-ID');
+            document.getElementById('rec-no').innerText = Math.floor(100000 + Math.random() * 900000);
+            
+            const recItems = document.getElementById('rec-items');
+            recItems.innerHTML = '';
+            cart.forEach(item => {
+                const div = document.createElement('div');
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.style.marginBottom = '3px';
+                div.innerHTML = `
+                    <span>${item.name} x${item.qty}</span>
+                    <span>Rp ${(item.price * item.qty).toLocaleString()}</span>`;
+                recItems.appendChild(div);
             });
-            document.getElementById('rec-items-body').innerHTML = recItemsHTML;
 
-            document.getElementById('rec-subtotal').innerText = `Rp ${subtotal.toLocaleString('id-ID')}`;
-            document.getElementById('rec-discount').innerText = `Rp ${discount.toLocaleString('id-ID')}`;
-            document.getElementById('rec-total').innerText = `Rp ${grandTotal.toLocaleString('id-ID')}`;
-            document.getElementById('rec-method').innerText = method;
-            document.getElementById('rec-paid').innerText = `Rp ${(method === 'Tunai' ? cashPaid : grandTotal).toLocaleString('id-ID')}`;
-            document.getElementById('rec-change').innerText = `Rp ${(method === 'Tunai' ? Math.max(0, cashPaid - grandTotal) : 0).toLocaleString('id-ID')}`;
+            document.getElementById('rec-total').innerText = `Rp ${subtotal.toLocaleString()}`;
+            document.getElementById('rec-pay').innerText = `Rp ${pay.toLocaleString()}`;
+            document.getElementById('rec-change').innerText = `Rp ${(pay - subtotal).toLocaleString()}`;
 
-            // Save to local sales history
             salesHistory.push({
-                trxNo,
-                date: dateStr,
-                total: grandTotal,
-                method,
+                time: now.toLocaleTimeString('id-ID'),
+                total: subtotal,
                 itemsCount: cart.length
             });
-            localStorage.setItem('smart_print_sales', JSON.stringify(salesHistory));
+            localStorage.setItem('smart_pos_sales', JSON.stringify(salesHistory));
 
-            document.getElementById('modal-rec-summary').innerText = `Total: Rp ${grandTotal.toLocaleString('id-ID')} (${method})`;
-            document.getElementById('modal-receipt').classList.remove('hidden');
-        }
-
-        function printReceipt() {
-            document.body.className = 'printing-receipt';
+            document.body.className = "bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800 antialiased printing-receipt";
             window.print();
-            setTimeout(() => { document.body.className = ''; }, 1000);
+            setTimeout(() => { 
+                document.body.className = "bg-slate-100 font-sans min-h-screen flex flex-col text-slate-800 antialiased"; 
+                clearCart();
+                document.getElementById('pos-pay-amount').value = '';
+                calculateChange();
+            }, 1000);
         }
 
-        function closeReceiptModal() {
-            document.getElementById('modal-receipt').classList.add('hidden');
-            clearCart();
-            document.getElementById('pos-discount').value = '0';
-            document.getElementById('pos-cash-paid').value = '0';
-            calculatePOS();
-            showToast('Siap untuk transaksi berikutnya!', 'fa-circle-check');
-        }
-
-        // --- SALES REPORT MODAL LOGIC ---
-        function loadSalesHistory() {
-            const saved = localStorage.getItem('smart_print_sales');
-            if (saved) {
-                try { salesHistory = JSON.parse(saved); } catch(e) { salesHistory = []; }
-            }
-        }
-
+        // --- SECTION 5: MODAL LAPORAN SALES ---
         function openSalesModal() {
-            let totalAmount = 0;
-            salesHistory.forEach(s => totalAmount += s.total);
+            document.getElementById('sales-modal').classList.remove('hidden');
+            let totalOmset = 0;
+            salesHistory.forEach(s => totalOmset += s.total);
 
-            document.getElementById('sales-total-amount').innerText = `Rp ${totalAmount.toLocaleString('id-ID')}`;
-            document.getElementById('sales-total-count').innerText = `${salesHistory.length} TRX`;
+            document.getElementById('report-total-sales').innerText = `Rp ${totalOmset.toLocaleString()}`;
+            document.getElementById('report-total-trans').innerText = `${salesHistory.length} TRX`;
 
-            const listEl = document.getElementById('sales-history-list');
-            if (salesHistory.length === 0) {
-                listEl.innerHTML = `<p class="text-slate-400 text-center py-6">Belum ada transaksi tercatat hari ini.</p>`;
+            const historyList = document.getElementById('report-history-list');
+            historyList.innerHTML = '';
+            
+            if(salesHistory.length === 0) {
+                historyList.innerHTML = `<p class="text-center text-slate-400 py-6">Belum ada transaksi tercatat</p>`;
             } else {
-                let html = '';
                 salesHistory.slice().reverse().forEach(s => {
-                    html += `
-                        <div class="flex justify-between items-center bg-white p-2 rounded-lg border">
-                            <div>
-                                <span class="font-bold text-slate-800 block">${s.trxNo}</span>
-                                <span class="text-[10px] text-slate-400">${s.date} • ${s.method}</span>
-                            </div>
-                            <span class="font-bold text-indigo-700">Rp ${s.total.toLocaleString('id-ID')}</span>
-                        </div>`;
+                    const item = document.createElement('div');
+                    item.className = "flex justify-between items-center bg-white p-2 rounded border";
+                    item.innerHTML = `
+                        <span><i class="fa-solid fa-clock text-slate-400 mr-1"></i> ${s.time} (${s.itemsCount} item)</span>
+                        <span class="font-bold text-emerald-700">Rp ${s.total.toLocaleString()}</span>`;
+                    historyList.appendChild(item);
                 });
-                listEl.innerHTML = html;
             }
-
-            document.getElementById('modal-sales').classList.remove('hidden');
         }
 
         function closeSalesModal() {
-            document.getElementById('modal-sales').classList.add('hidden');
+            document.getElementById('sales-modal').classList.add('hidden');
         }
 
-        function clearSalesHistory() {
-            salesHistory = [];
-            localStorage.removeItem('smart_print_sales');
-            openSalesModal();
-            showToast('Riwayat penjualan dibersihkan.', 'fa-trash');
+        function clearSalesData() {
+            if(confirm("Apakah Anda yakin ingin menghapus semua data riwayat penjualan?")) {
+                salesHistory = [];
+                localStorage.removeItem('smart_pos_sales');
+                openSalesModal();
+            }
         }
     </script>
 </body>
