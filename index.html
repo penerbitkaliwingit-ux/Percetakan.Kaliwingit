@@ -564,11 +564,87 @@
 
     <!-- Thermal Receipt Print View Hidden Area -->
     <div id="receiptPrintArea" class="hidden">
-        <!-- ... existing content ... -->
+        <div style="text-align: center; margin-bottom: 8px;">
+            <h3 style="font-size: 14px; font-weight: bold; margin: 0;">SMART PERCETAKAN DIGITAL</h3>
+            <p style="font-size: 10px; margin: 2px 0;">Layanan Cetak & Kasir POS</p>
+            <p style="font-size: 10px; margin: 2px 0; border-bottom: 1px dashed #000; padding-bottom: 4px;"></p>
+        </div>
+        <div style="font-size: 10px; margin-bottom: 8px;">
+            <p style="margin: 2px 0;">No. TRX : <span id="rec-no">-</span></p>
+            <p style="margin: 2px 0;">Tanggal  : <span id="rec-date">-</span></p>
+            <p style="margin: 4px 0; border-bottom: 1px dashed #000; padding-bottom: 4px;"></p>
+        </div>
+        <table style="width: 100%; font-size: 10px; border-collapse: collapse; margin-bottom: 8px;">
+            <thead>
+                <tr style="border-bottom: 1px dashed #000; text-align: left;">
+                    <th style="padding-bottom: 2px;">Item</th>
+                    <th style="text-align: right; padding-bottom: 2px;">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody id="rec-items-body">
+                <!-- Data item diisi dinamis oleh script -->
+            </tbody>
+        </table>
+        <div style="font-size: 10px; border-top: 1px dashed #000; padding-top: 4px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                <span>Subtotal:</span>
+                <span id="rec-subtotal">Rp 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                <span>Diskon:</span>
+                <span id="rec-discount">Rp 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; margin: 4px 0 2px 0; font-size: 11px;">
+                <span>TOTAL:</span>
+                <span id="rec-total">Rp 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                <span>Metode:</span>
+                <span id="rec-method">Tunai</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                <span>Bayar:</span>
+                <span id="rec-paid">Rp 0</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin: 2px 0;">
+                <span>Kembali:</span>
+                <span id="rec-change">Rp 0</span>
+            </div>
+        </div>
+        <div style="text-align: center; font-size: 9px; margin-top: 12px; border-top: 1px dashed #000; padding-top: 4px;">
+            <p style="margin: 2px 0;">--- TERIMA KASIH ---</p>
+            <p style="margin: 2px 0;">Barang/Hasil Cetak Harap Diperiksa Kembali</p>
+        </div>
     </div>
 
     <!-- Hidden Print Container for PDF Filtered Printing -->
     <div id="pdfPrintArea" class="hidden"></div>
+
+    <!-- Modal Pratinjau Hasil Cetak Terpisah PDF -->
+    <div id="modal-pdf-filter" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2 text-base" id="filter-preview-title">
+                    <i class="fa-solid fa-file-pdf text-red-600"></i> Pratinjau Cetak Halaman PDF Terpisah
+                </h3>
+                <button onclick="closePdfFilterModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+            </div>
+            <div class="text-xs text-slate-500">
+                Berikut adalah tampilan halaman hasil filter yang siap dicetak ke printer:
+            </div>
+            <div id="pdf-filter-preview-list" class="overflow-y-auto flex-grow border rounded-xl p-3 bg-slate-200 grid grid-cols-1 gap-4 max-h-[50vh]">
+                <!-- Preview Gambar Halaman PDF dimasukkan di sini -->
+            </div>
+            <div class="flex justify-end gap-3 border-t pt-3">
+                <button onclick="closePdfFilterModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs transition-colors">
+                    Tutup
+                </button>
+                <button onclick="doPrintPdfFiltered()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow transition-colors">
+                    <i class="fa-solid fa-print"></i> Cetak Halaman Ini
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Modal Pratinjau Struk Kasir -->
     <div id="modal-receipt" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
@@ -1156,10 +1232,12 @@
                 return;
             }
 
-            showToast(`Menyiapkan ${targetPages.length} halaman ${filterType === 'color' ? 'Warna' : 'Hitam-Putih'} siap cetak...`, 'fa-circle-notch');
+            showToast(`Menyiapkan pratinjau ${targetPages.length} halaman ${filterType === 'color' ? 'Warna' : 'Hitam-Putih'}...`, 'fa-circle-notch');
 
             const container = document.getElementById('pdfPrintArea');
+            const previewContainer = document.getElementById('pdf-filter-preview-list');
             container.innerHTML = '';
+            previewContainer.innerHTML = '';
 
             try {
                 const arrayBuffer = await currentPdfFile.arrayBuffer();
@@ -1167,32 +1245,56 @@
 
                 for (let pageInfo of targetPages) {
                     const page = await pdf.getPage(pageInfo.pageNum);
-                    const viewport = page.getViewport({ scale: 2.0 }); // High-res 2x scaling for crisp print
-
-                    const pageDiv = document.createElement('div');
-                    pageDiv.className = 'pdf-print-page flex justify-center py-2';
+                    const viewport = page.getViewport({ scale: 1.5 });
 
                     const canvas = document.createElement('canvas');
                     canvas.width = viewport.width;
                     canvas.height = viewport.height;
-                    canvas.style.width = '210mm';
-                    canvas.style.height = 'auto';
 
                     const ctx = canvas.getContext('2d');
                     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                    pageDiv.appendChild(canvas);
-                    container.appendChild(pageDiv);
+                    const imgUrl = canvas.toDataURL('image/png');
+
+                    // Element untuk pencetakan (Print Area)
+                    const printDiv = document.createElement('div');
+                    printDiv.className = 'pdf-print-page flex justify-center py-2';
+                    const printImg = document.createElement('img');
+                    printImg.src = imgUrl;
+                    printImg.style.width = '210mm';
+                    printImg.style.height = 'auto';
+                    printDiv.appendChild(printImg);
+                    container.appendChild(printDiv);
+
+                    // Element untuk pratinjau layar modal (Preview Area)
+                    const prevDiv = document.createElement('div');
+                    prevDiv.className = 'bg-white p-3 rounded-lg border border-slate-300 text-center space-y-2 shadow-sm';
+                    prevDiv.innerHTML = `
+                        <span class="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full border inline-block">
+                            Halaman ${pageInfo.pageNum} (${filterType === 'color' ? 'Warna' : 'Hitam Putih'})
+                        </span>
+                        <img src="${imgUrl}" class="max-w-full h-auto mx-auto border rounded shadow-md">
+                    `;
+                    previewContainer.appendChild(prevDiv);
                 }
 
-                document.body.className = 'printing-pdf';
-                window.print();
-                setTimeout(() => { document.body.className = ''; }, 1000);
+                document.getElementById('filter-preview-title').innerText = `Pratinjau Cetak Hal. ${filterType === 'color' ? 'Warna' : 'Hitam Putih'} (${targetPages.length} Halaman)`;
+                document.getElementById('modal-pdf-filter').classList.remove('hidden');
 
             } catch (err) {
                 console.error(err);
                 showToast('Gagal memproses cetak filter PDF!', 'fa-triangle-exclamation');
             }
+        }
+
+        function doPrintPdfFiltered() {
+            document.body.className = 'printing-pdf';
+            window.print();
+            setTimeout(() => { document.body.className = ''; }, 1000);
+        }
+
+        function closePdfFilterModal() {
+            document.getElementById('modal-pdf-filter').classList.add('hidden');
         }
 
         function sendPdfToCashier() {
